@@ -48,8 +48,8 @@ body {
 }
 
 .socket:hover {
-    /* Yellow on hover */
-    background-color: #FFFF00;
+    /* make this override the inline style */
+    border-color: #FFF !important;
 }
 
 .socket-label.connected {
