@@ -1,0 +1,116 @@
+body {
+    background: #1E1E1E;
+    background-image: radial-gradient(#484848 1px, transparent 0);
+    background-size: 40px 40px;
+    background-position: -19px -19px;
+}
+
+#workspace {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+#connections {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#nodes {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+.socket {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: white;
+    border: 2px solid #555;
+    border-radius: 50%;
+    cursor: pointer;
+    right: -6px;
+}
+
+.socket.input {
+    left: -8px;
+}
+
+.socket.output {
+    right: -7px;
+}
+
+.socket:hover {
+    /* Yellow on hover */
+    background-color: #FFFF00;
+}
+
+.socket-label.connected {
+    /* hide */
+    display: none;
+}
+
+.edge:hover {
+    /* Yellow on hover */
+    background-color: #FFFF00;
+}
+
+.socket.output > .socket-label {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: calc(100% + 6px); /* Adjusted value */
+    color: rgb(60, 60, 60);
+    font-size: 10px;
+    font-weight: bold;
+    /* Align font left */
+    text-align: left;
+  }
+
+.socket.input > .socket-label {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: calc(100% + 6px); /* Adjusted value */
+    color: rgb(60, 60, 60);
+    font-size: 10px;
+    font-weight: bold;
+    /* Align font left */
+    text-align: left;
+}
+
+.node {
+    position: absolute;
+    background: #252526;
+    color: white;
+    border: 1px solid #555;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    border-radius: 5px;
+    user-select: none;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+    /* Order */
+    z-index: 1;
+}
+
+.node:hover {
+    /* light blue on hover */
+    border: 1px solid #007acc;
+}
+
+.node.selected {
+    /* light blue on hover */
+    border: 1px solid #FFFF00;
+    /* Order */
+    z-index: 2;
+}
