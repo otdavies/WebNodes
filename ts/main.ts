@@ -2,7 +2,8 @@
 import { Block } from './block.js';
 import { Socket } from './socket.js';
 import { Edge } from './edge.js';
-import { SocketType, ToBlock, ToSocket, connections, elementToBlock, elementToSocket, nodes } from './shared.js';
+import { Inspector } from './inspector.js';
+import { SocketType, ToBlock, ToSocket, connections, contextMenu, nodes, nodeTypes } from './shared.js';
 
 // --- Setup ---
 
@@ -11,6 +12,8 @@ let line: SVGPathElement | null = null;
 let selectedBlock: Block | null = null;
 let selectedBlockClickPoint: { x: number; y: number } | null = null;
 let connectedEdges: Edge[] = [];
+let dragNode = false;
+let inspector: Inspector = new Inspector();
 
 // --- UTILITY FUNCTIONS --- 
 
@@ -61,41 +64,105 @@ function updateConnection(path: SVGPathElement, startSocket: Socket, endSocket: 
   return path;
 }
 
+const searchBox = contextMenu.querySelector('input')!;
+searchBox.addEventListener('input', function (e) {
+  const searchText = (e.target as HTMLInputElement).value;
+  PopulateContextMenu(searchText);
+});
+
+function PopulateContextMenu(searchText: string) {
+  const list = contextMenu.querySelector('ul')!;
+  list.innerHTML = '';
+
+
+  for (const nodeType of nodeTypes) {
+    if (nodeType.toLowerCase().includes(searchText.toLowerCase())) {
+      const listItem = document.createElement('li');
+      listItem.textContent = nodeType;
+      listItem.addEventListener('click', (e) => {
+        let block = CreateBlock(nodeType);
+        let blockElement = block.GetElement(e.clientX, e.clientY);
+        contextMenu.style.display = 'none';
+        nodes.appendChild(blockElement);
+      });
+      list.appendChild(listItem);
+    }
+  }
+}
+
+function CreateBlock(nodeType: string): Block {
+  let block = new Block(inspector, (inputs: any[]) => {
+    console.log(inputs);
+    // Wait 1 second in the promise
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        resolve(); // resolve the promise after 1 second
+      }, 1000);
+    });
+  });
+
+  block.AddInputSocket(new Socket(block, 'input1', 'default', SocketType.INPUT));
+  block.AddInputSocket(new Socket(block, 'input2', 'number', SocketType.INPUT));
+  block.AddInputSocket(new Socket(block, 'input3', 'string', SocketType.INPUT));
+  block.AddOutputSocket(new Socket(block, 'output1', 'number', SocketType.OUTPUT));
+  block.AddOutputSocket(new Socket(block, 'output2', 'boolean', SocketType.OUTPUT));
+  return block;
+}
+
+
 // --- EVENT LISTENERS ---
 
 // Create nodes on right click
 nodes.addEventListener('contextmenu', function (e) {
-  if (e.target instanceof HTMLElement && e.target.id === 'nodes') {
-    let node = new Block(function (inputs) { console.log(inputs); return Promise.resolve(); });
-    node.AddInputSocket(new Socket(node, 'input1', 'default', SocketType.INPUT));
-    node.AddInputSocket(new Socket(node, 'input2', 'number', SocketType.INPUT));
-    node.AddInputSocket(new Socket(node, 'input3', 'string', SocketType.INPUT));
-    node.AddOutputSocket(new Socket(node, 'output1', 'number', SocketType.OUTPUT));
-    node.AddOutputSocket(new Socket(node, 'output1', 'boolean', SocketType.OUTPUT));
-    let nodeElement = node.GetElement(e.pageX, e.pageY);
-    nodes.appendChild(nodeElement);
-  }
-});
-
-// Delete nodes
-nodes.addEventListener('dblclick', function (e) {
+  e.preventDefault();
   if (e.target instanceof HTMLElement && e.target.className === 'node') {
     let node = ToBlock(e.target);
     if (node) {
-      node.Destroy();
-      nodes.removeChild(e.target);
+      node.Evaluate();
+    }
+    return;
+  }
+
+  if (e.target instanceof HTMLElement && e.target.id === 'nodes') {
+    e.preventDefault();
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = `${e.clientX}px`;
+    contextMenu.style.top = `${e.clientY}px`;
+  } PopulateContextMenu('');
+});
+
+// Delete nodes with the delete key
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Delete') {
+    if (selectedBlock !== null) {
+      selectedBlock.OnDeselected();
+      selectedBlock.Destroy();
+      nodes.removeChild(selectedBlock.element);
+      selectedBlock = null;
     }
   }
 });
 
+
 // MOUSE DOWN
 nodes.addEventListener('mousedown', function (e) {
+  contextMenu.style.display = 'none';
+  // Return if not a left click
+  if (e.button !== 0) return;
+
   // SOCKET CLICK START
   if (Socket.IsOutput(e)) {
     let socket = ToSocket(e.target as HTMLElement);
     if (socket) {
       StartSocket = socket;
       line = createConnection(StartSocket);
+    }
+  } else {
+    // Select any node
+    dragNode = true;
+    if (selectedBlock !== null) {
+      selectedBlock.OnDeselected();
+      selectedBlock = null;
     }
   }
 
@@ -107,13 +174,14 @@ nodes.addEventListener('mousedown', function (e) {
     if (node) {
       selectedBlock = node;
       selectedBlockClickPoint = { x: e.offsetX, y: e.offsetY };
-      // Change the border color to yellow
-      node.element.classList.add('selected');
+      node.OnSelected();
     }
   }
 });
 
 nodes.addEventListener('mouseup', function (e) {
+  dragNode = false;
+
   if (StartSocket !== null) {
     let isInput = Socket.IsInput(e)
 
@@ -148,12 +216,6 @@ nodes.addEventListener('mouseup', function (e) {
     }
     return;
   }
-
-  // contains the class name "node"
-  if (selectedBlock !== null) {
-    selectedBlock.element.classList.remove('selected');
-    selectedBlock = null;
-  }
 });
 
 nodes.addEventListener('mousemove', function (e) {
@@ -162,7 +224,7 @@ nodes.addEventListener('mousemove', function (e) {
   }
 
   // Drag a node, from where we clicked on it
-  if (selectedBlock !== null && selectedBlockClickPoint !== null) {
+  if (dragNode === true && selectedBlock !== null && selectedBlockClickPoint !== null) {
     let x = e.pageX - selectedBlockClickPoint.x;
     let y = e.pageY - selectedBlockClickPoint.y;
     selectedBlock.element.style.left = x + 'px';

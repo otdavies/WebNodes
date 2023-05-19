@@ -1,15 +1,36 @@
+import { Inspector } from "./inspector.js";
 import { elementToBlock, uuidv4 } from "./shared.js";
 import { Socket } from "./socket.js";
 
-export class Block {
-    uuid: string;
-    promise: (inputValues: any[]) => Promise<any>;
-    inputs: Socket[];
-    outputs: Socket[];
-    size: number[];
-    element: HTMLElement;
+interface BlockProperty {
+    type: "input" | "textarea" | "button" | "slider";
+    value: any;
+    setValue?: (val: any) => void;
+}
 
-    constructor(promise: (inputValues: any[]) => Promise<any>) {
+export class Block {
+    public element: HTMLElement;
+    public inputs: Socket[];
+    public outputs: Socket[];
+
+    private promise: (inputValues: any[]) => Promise<any>;
+    private uuid: string;
+    private size: number[];
+    private inspector: Inspector;
+
+    private cachedValue: any = null;
+    private isDirty: boolean = true;
+
+    private properties: { [key: string]: BlockProperty; } = {
+        "Name": { type: "input", value: "default" },
+        "Prompt": { type: "textarea", value: "Some prompt" },
+        "Generate": { type: "button", value: "Click me" },
+        "Creativity": { type: "slider", value: 50 },
+        // add as many properties as you like...
+    };
+
+    constructor(inspector: Inspector, promise: (inputValues: any[]) => Promise<any>) {
+        this.inspector = inspector;
         this.uuid = uuidv4();
         this.promise = promise;
         this.inputs = [];
@@ -17,6 +38,46 @@ export class Block {
         this.size = [100, 100];
         this.element = this.CreateBlockHTML(0, 0);
         elementToBlock.set(this.element, this);
+
+        for (const prop in this.properties) {
+            this.properties[prop].setValue = (val: any) => {
+                if (val === null) return;
+
+                this.properties[prop].value = val;
+                this.OnPropertyChanged(prop);
+            }
+        }
+    }
+
+    // Call this method whenever an input or property changes
+    SetDirty() {
+        this.isDirty = true;
+        // Also mark downstream nodes as dirty
+        for (let output of this.outputs) {
+            for (let edge of output.edges) {
+                edge.endSocket.owner.SetDirty();
+            }
+        }
+    }
+
+    OnPropertyChanged(propertyName: string) {
+        console.log(`Property ${propertyName} changed! New value: ${this.properties[propertyName].value}`);
+        // If the 'Name' property changes, update the title of the block
+        if (propertyName === 'Name') {
+            this.AddOrSetTitle(this.properties[propertyName].value);
+        }
+
+        this.SetDirty();
+    }
+
+    OnSelected() {
+        this.element.classList.add('selected');
+        this.inspector.selectNode(this);
+    }
+
+    OnDeselected() {
+        this.inspector.deselectNode();
+        this.element.classList.remove('selected');
     }
 
     AddInputSocket(socket: Socket) {
@@ -49,11 +110,44 @@ export class Block {
         this.element.appendChild(socketElement);
     }
 
-    async Evaluate() {
-        const inputPromises = this.inputs.map(input => input.node.promise);
-        return Promise.all(inputPromises).then(inputValues => {
-            return this.promise(inputValues);
-        });
+    AddOrSetTitle(title: string) {
+        if (this.element.querySelector('.title')) {
+            // set text
+            this.element.querySelector('.title')!.textContent = title;
+            return;
+        }
+
+        let titleElement = document.createElement('div');
+        titleElement.className = 'title';
+        titleElement.textContent = title;
+        this.element.appendChild(titleElement);
+    }
+
+    async Evaluate(): Promise<any> {
+        // Evaluate upstream nodes first
+        let promises: Promise<any>[] = [];
+        for (let input of this.inputs) {
+            for (let edge of input.edges) {
+                promises.push(edge.startSocket.owner.Evaluate());
+            }
+        }
+
+        let inputValues = await Promise.all(promises);
+
+        if (!this.isDirty && this.cachedValue !== null) {
+            // If the node is not dirty and has a cached value, return the cached value
+            return this.cachedValue;
+        }
+
+        // Execute the promise of the current node
+        this.element.classList.add('node-executing');
+        this.cachedValue = await this.promise(inputValues);
+        this.element.classList.remove('node-executing');
+
+        // Mark the node as not dirty
+        this.isDirty = false;
+
+        return this.cachedValue;
     }
 
     CreateBlockHTML(x: number, y: number): HTMLElement {
@@ -77,6 +171,10 @@ export class Block {
         this.element.style.height = this.size[1] + 'px';
 
         return this.element;
+    }
+
+    GetProperties(): { [key: string]: BlockProperty; } {
+        return this.properties;
     }
 
     Destroy() {

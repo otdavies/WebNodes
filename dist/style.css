@@ -3,6 +3,8 @@ body {
     background-image: radial-gradient(#484848 1px, transparent 0);
     background-size: 40px 40px;
     background-position: -19px -19px;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 #workspace {
@@ -26,6 +28,52 @@ body {
     width: 100vw;
     height: 100vh;
     z-index: 1;
+}
+
+#context-menu {
+    padding: 10px;
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.6);
+    z-index: 4;
+    background-color: #303030;
+    color: #fff;
+    width: 200px;
+    /* adjust as needed */
+    border-radius: 5px;
+}
+
+#context-menu input[type="text"] {
+    width: 100%;
+    padding: 6px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    background-color: #484848;
+    border: none;
+    color: #fff;
+    border-radius: 5px;
+}
+
+#context-menu ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    /* adjust as needed */
+    overflow-y: auto;
+    background-color: #303030;
+    border-radius: 5px;
+    /* Set the same dark background for ul */
+}
+
+#context-menu li {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background 0.3s;
+    background-color: #303030;
+    /* Set the same dark background for li */
+}
+
+#context-menu li:hover {
+    background-color: #484848;
 }
 
 .socket {
@@ -62,23 +110,25 @@ body {
     background-color: #FFFF00;
 }
 
-.socket.output > .socket-label {
+.socket.output>.socket-label {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    left: calc(100% + 6px); /* Adjusted value */
+    left: calc(100% + 6px);
+    /* Adjusted value */
     color: rgb(60, 60, 60);
     font-size: 10px;
     font-weight: bold;
     /* Align font left */
     text-align: left;
-  }
+}
 
-.socket.input > .socket-label {
+.socket.input>.socket-label {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    right: calc(100% + 6px); /* Adjusted value */
+    right: calc(100% + 6px);
+    /* Adjusted value */
     color: rgb(60, 60, 60);
     font-size: 10px;
     font-weight: bold;
@@ -113,4 +163,95 @@ body {
     border: 1px solid #FFFF00;
     /* Order */
     z-index: 2;
+}
+
+.node-executing {
+    border: none;
+    background: linear-gradient(45deg, #252526, #252526 25%, #007acc 25%, #007acc 50%, #252526 50%, #252526 75%, #007acc 75%);
+    background-size: 50px 50px;
+    animation: stripe 1s linear infinite;
+}
+
+@keyframes stripe {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 50px 50px;
+    }
+}
+
+#inspector {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 300px;
+    height: 100%;
+    background: rgba(50, 50, 50, 0.5);
+    transition: transform .3s ease-in-out;
+    overflow-y: auto;
+    border-radius: 5px;
+    padding: 20px;
+    box-sizing: border-box;
+    border: 1px solid #555;
+    color: #fff;
+    z-index: 3;
+}
+
+.inspector-content {
+    display: flex;
+    flex-direction: column;
+}
+
+#inspector.inspector-closed {
+    background: rgba(50, 50, 50, 0.1);
+}
+
+#inspector.inspector-open {
+    background: rgba(50, 50, 50, 0.5);
+}
+
+#inspector h3 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#inspector-properties>div {
+    margin-bottom: 20px;
+}
+
+#inspector-properties>div>label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+#inspector-properties input[type="range"],
+#inspector-properties input[type="text"],
+#inspector-properties textarea,
+#inspector-properties button {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    border: 1px solid #fff;
+    /* Better font */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#inspector-properties input[type="range"] {
+    max-width: 100%;
+}
+
+#inspector-properties button {
+    background: #007bff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+#inspector-properties button:hover {
+    background: #0056b3;
 }

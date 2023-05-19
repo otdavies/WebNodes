@@ -7,6 +7,18 @@
 </head>
 
 <body>
+    <div id="context-menu" style="display: none; position: fixed;">
+        <input type="text" placeholder="Search..." />
+        <ul>
+            <!-- Node types will be populated here -->
+        </ul>
+    </div>
+    <div id="inspector" class="inspector-closed">
+        <div class="inspector-content">
+            <h3>Node Inspector</h3>
+            <div id="inspector-properties"></div>
+        </div>
+    </div>
     <div id="workspace">
         <svg id="connections"></svg>
         <div id="nodes"></div>

@@ -3,7 +3,7 @@ import { Edge } from "./edge.js";
 import { SocketType, elementToSocket, socketColorTable } from "./shared.js";
 
 export class Socket {
-    node: Block;
+    owner: Block;
     name: string;
     dataType: string;
     socketType: SocketType;
@@ -14,7 +14,7 @@ export class Socket {
     element: HTMLElement;
 
     constructor(owner: Block, name: string, dataType: string, socketType: SocketType) {
-        this.node = owner;
+        this.owner = owner;
         this.name = name;
         this.dataType = dataType;
         this.socketType = socketType;
@@ -30,12 +30,14 @@ export class Socket {
         this.edges.push(edge);
         this.connected = true;
         this.element.querySelector('.socket-label')?.classList.add('connected');
+        this.owner.SetDirty();
     }
 
     Disconnect(edge: Edge) {
         this.edges.splice(this.edges.indexOf(edge), 1);
         this.connected = this.edges.length > 0;
         this.element.querySelector('.socket-label')?.classList.remove('connected');
+        this.owner.SetDirty();
     }
 
     DisconnectAll() {
@@ -51,6 +53,7 @@ export class Socket {
         this.edges = [];
         this.connected = false;
         this.element.querySelector('.socket-label')?.classList.remove('connected');
+        this.owner.SetDirty();
     }
 
     CreateElement(): HTMLElement {

@@ -29,6 +29,10 @@ export const elementToSocket = new Map<HTMLElement, Socket>();
 export const elementToEdge = new Map<SVGElement, Edge>();
 export const nodes = document.getElementById('nodes') as HTMLElement;
 export const connections = document.getElementById('connections') as HTMLElement;
+export const workspace = document.getElementById('workspace') as HTMLElement;
+export const contextMenu = document.getElementById('context-menu') as HTMLElement;
+export const nodeTypes: string[] = ['NodeType1', 'NodeType2', 'NodeType3'];
+
 
 export function ToBlock(element: HTMLElement): Block | undefined {
     return elementToBlock.get(element);
