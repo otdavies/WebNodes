@@ -71,7 +71,14 @@ export class Socket {
         return isInput || isChildOfInput;
     }
     static IsOutput(e) {
-        return e.target instanceof Element && e.target.classList.contains('socket') && e.target.classList.contains('output');
+        // Is it an output socket
+        let isOutput = e.target instanceof Element && e.target.classList.contains('socket') && e.target.classList.contains('output');
+        // Is it a child of an output socket
+        let isChildOfOutput = e.target instanceof Element && e.target.parentElement && e.target.parentElement.classList.contains('socket') && e.target.parentElement.classList.contains('output');
+        if (isChildOfOutput === null) {
+            isChildOfOutput = false;
+        }
+        return isOutput || isChildOfOutput;
     }
     GetElement() {
         return this.element;

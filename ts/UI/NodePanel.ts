@@ -14,11 +14,14 @@ export class NodePanel {
     document: HTMLElement;
     selectedSocket: Socket | null = null;
     selectedBlock: Block | null = null;
-    selectedBlockClickPoint: { x: number; y: number } | null = null;
+    lastMousePosition: { x: number; y: number } | null = null;
     connectorPath: SVGPathElement | null = null;
-    connectedEdges: Edge[] = [];
     shouldDragNode = false;
+    shouldDragGraph = false;
     inspector: InspectorPanel | null = null;
+
+    edges: Edge[] = [];
+    blocks: Block[] = [];
 
     constructor(document: HTMLElement, inspector: InspectorPanel) {
         this.document = document;
@@ -110,6 +113,7 @@ export class NodePanel {
         block.AddInputSocket(new Socket(block, 'input3', 'string', SocketType.INPUT));
         block.AddOutputSocket(new Socket(block, 'output1', 'number', SocketType.OUTPUT));
         block.AddOutputSocket(new Socket(block, 'output2', 'boolean', SocketType.OUTPUT));
+        this.blocks.push(block);
         return block;
     }
 
@@ -141,10 +145,13 @@ export class NodePanel {
         if (evt.target instanceof HTMLElement && evt.target.className === 'node') {
             let node = ToBlock(evt.target);
             if (node) {
+                this.lastMousePosition = { x: evt.offsetX, y: evt.offsetY };
                 this.selectedBlock = node;
-                this.selectedBlockClickPoint = { x: evt.offsetX, y: evt.offsetY };
                 node.OnSelected();
             }
+        } else if (evt.target === this.document) {
+            this.shouldDragGraph = true;
+            this.lastMousePosition = { x: evt.clientX, y: evt.clientY };
         }
     }
 
@@ -153,6 +160,7 @@ export class NodePanel {
         if (evt.button !== 0) return;
 
         this.shouldDragNode = false;
+        this.shouldDragGraph = false;
 
         if (this.selectedSocket !== null) {
             let isInput = Socket.IsInput(evt)
@@ -170,7 +178,7 @@ export class NodePanel {
                     endSocket.Connect(edge);
 
                     // Add the edge to the list
-                    this.connectedEdges.push(edge);
+                    this.edges.push(edge);
                 }
             } else {
                 // If this socket is the same as the StartSocket, remove any connections
@@ -217,6 +225,7 @@ export class NodePanel {
                 this.selectedBlock.OnDeselected();
                 this.selectedBlock.Destroy();
                 nodePanel.removeChild(this.selectedBlock.element);
+                this.blocks.splice(this.blocks.indexOf(this.selectedBlock), 1);
                 this.selectedBlock = null;
             }
         }
@@ -228,14 +237,39 @@ export class NodePanel {
         }
 
         // Drag a node, from where we clicked on it
-        if (this.shouldDragNode === true && this.selectedBlock !== null && this.selectedBlockClickPoint !== null) {
-            let x = evt.pageX - this.selectedBlockClickPoint.x;
-            let y = evt.pageY - this.selectedBlockClickPoint.y;
+        if (this.shouldDragNode === true && this.selectedBlock !== null && this.lastMousePosition !== null) {
+            let x = evt.pageX - this.lastMousePosition.x;
+            let y = evt.pageY - this.lastMousePosition.y;
             this.selectedBlock.element.style.left = x + 'px';
             this.selectedBlock.element.style.top = y + 'px';
 
-            this.connectedEdges.forEach(edge => {
+            this.edges.forEach(edge => {
                 this.UpdateConnection(edge.element, edge.startSocket, edge.endSocket, evt);
+            });
+        }
+
+        // Drag the graph
+        if (this.shouldDragGraph) {
+            if (this.lastMousePosition === null) return;
+            const dx = evt.clientX - this.lastMousePosition.x;
+            const dy = evt.clientY - this.lastMousePosition.y;
+            this.lastMousePosition = { x: evt.clientX, y: evt.clientY };
+
+            this.blocks.forEach(block => {
+                block.element.style.left = (parseFloat(block.element.style.left) || 0) + dx + 'px';
+                block.element.style.top = (parseFloat(block.element.style.top) || 0) + dy + 'px';
+
+                block.outputs.forEach(socket => {
+                    socket.edges.forEach(edge => {
+                        this.UpdateConnection(edge.element, edge.startSocket, edge.endSocket, null);
+                    });
+                });
+
+                block.inputs.forEach(socket => {
+                    socket.edges.forEach(edge => {
+                        this.UpdateConnection(edge.element, edge.startSocket, edge.endSocket, null);
+                    });
+                });
             });
         }
     }

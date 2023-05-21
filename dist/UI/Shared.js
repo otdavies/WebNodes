@@ -21,6 +21,7 @@ export const socketColorTable = {
 export const elementToBlock = new Map();
 export const elementToSocket = new Map();
 export const elementToEdge = new Map();
+export const documentBody = document.body;
 export const nodePanel = document.getElementById('nodes');
 export const nodeConnections = document.getElementById('connections');
 export const workspace = document.getElementById('workspace');

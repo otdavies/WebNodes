@@ -1,16 +1,17 @@
 body {
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding: 0;
+}
+
+#workspace {
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
     background: #1E1E1E;
     background-image: radial-gradient(#484848 1px, transparent 0);
     background-size: 40px 40px;
     background-position: -19px -19px;
-    overflow: hidden;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-#workspace {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
 }
 
 #connections {
