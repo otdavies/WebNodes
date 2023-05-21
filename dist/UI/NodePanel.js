@@ -2,7 +2,7 @@
 import { Block } from './Block.js';
 import { Socket } from './Socket.js';
 import { Edge } from './Edge.js';
-import { SocketType, ToBlock, ToSocket, nodeConnections, contextMenu, nodePanel, nodeTypes } from './Shared.js';
+import { SocketType, ToBlock, ToSocket, nodeConnections, contextMenu, nodePanel, nodeTypes, workspace } from './Shared.js';
 export class NodePanel {
     constructor(document, inspector) {
         this.selectedSocket = null;
@@ -11,6 +11,7 @@ export class NodePanel {
         this.connectorPath = null;
         this.shouldDragNode = false;
         this.shouldDragGraph = false;
+        this.graphOffset = { x: 0, y: 0 };
         this.inspector = null;
         this.edges = [];
         this.blocks = [];
@@ -224,6 +225,10 @@ export class NodePanel {
             const dx = evt.clientX - this.lastMousePosition.x;
             const dy = evt.clientY - this.lastMousePosition.y;
             this.lastMousePosition = { x: evt.clientX, y: evt.clientY };
+            this.graphOffset = { x: this.graphOffset.x + dx, y: this.graphOffset.y + dy };
+            // Move background
+            workspace.style.backgroundPositionX = (this.graphOffset.x || 0) + dx + 'px';
+            workspace.style.backgroundPositionY = (this.graphOffset.y || 0) + dy + 'px';
             this.blocks.forEach(block => {
                 block.element.style.left = (parseFloat(block.element.style.left) || 0) + dx + 'px';
                 block.element.style.top = (parseFloat(block.element.style.top) || 0) + dy + 'px';

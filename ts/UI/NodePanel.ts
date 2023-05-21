@@ -3,7 +3,7 @@ import { Block } from './Block.js';
 import { Socket } from './Socket.js';
 import { Edge } from './Edge.js';
 import { InspectorPanel } from './InspectorPanel.js';
-import { SocketType, ToBlock, ToSocket, nodeConnections, contextMenu, nodePanel, nodeTypes } from './Shared.js';
+import { SocketType, ToBlock, ToSocket, nodeConnections, contextMenu, nodePanel, nodeTypes, workspace } from './Shared.js';
 
 interface Offset {
     top: number;
@@ -18,6 +18,7 @@ export class NodePanel {
     connectorPath: SVGPathElement | null = null;
     shouldDragNode = false;
     shouldDragGraph = false;
+    graphOffset = { x: 0, y: 0 };
     inspector: InspectorPanel | null = null;
 
     edges: Edge[] = [];
@@ -254,6 +255,10 @@ export class NodePanel {
             const dx = evt.clientX - this.lastMousePosition.x;
             const dy = evt.clientY - this.lastMousePosition.y;
             this.lastMousePosition = { x: evt.clientX, y: evt.clientY };
+            this.graphOffset = { x: this.graphOffset.x + dx, y: this.graphOffset.y + dy };
+            // Move background
+            workspace.style.backgroundPositionX = (this.graphOffset.x || 0) + dx + 'px';
+            workspace.style.backgroundPositionY = (this.graphOffset.y || 0) + dy + 'px';
 
             this.blocks.forEach(block => {
                 block.element.style.left = (parseFloat(block.element.style.left) || 0) + dx + 'px';
