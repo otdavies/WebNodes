@@ -29,7 +29,9 @@ export class Block {
         // add as many properties as you like...
     };
 
-    constructor(inspector: InspectorPanel, promise: (inputValues: any[]) => Promise<any>) {
+    constructor(inspector: InspectorPanel | null, promise: (inputValues: any[]) => Promise<any>) {
+        if (inspector === null) throw new Error("Inspector cannot be null!");
+
         this.inspector = inspector;
         this.uuid = uuidv4();
         this.promise = promise;

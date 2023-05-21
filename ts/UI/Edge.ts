@@ -1,4 +1,4 @@
-import { connections, elementToEdge, uuidv4 } from "./Shared.js";
+import { nodeConnections, elementToEdge, uuidv4 } from "./Shared.js";
 import { Socket } from "./Socket.js";
 
 export class Edge {
@@ -27,7 +27,7 @@ export class Edge {
         linearGradient.appendChild(startStop);
         linearGradient.appendChild(endStop);
 
-        connections.appendChild(linearGradient);
+        nodeConnections.appendChild(linearGradient);
         path.setAttribute('stroke', 'url(#grad' + this.uuid + ')')
         path.setAttribute('fill', 'none');
         this.element = path;
@@ -41,8 +41,8 @@ export class Edge {
 
     // Destructor
     Destroy() {
-        connections.removeChild(this.element);
-        connections.removeChild(document.getElementById('grad' + this.uuid) as Node);
+        nodeConnections.removeChild(this.element);
+        nodeConnections.removeChild(document.getElementById('grad' + this.uuid) as Node);
         elementToEdge.delete(this.element);
     }
 }

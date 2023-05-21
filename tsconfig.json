@@ -11,6 +11,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitReturns": true,
-    "outDir": "./dist/"
+    "outDir": "./dist/",
+    "moduleResolution": "node",
   }
 }

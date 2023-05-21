@@ -27,10 +27,12 @@ export const socketColorTable: { [key: string]: string } = {
 export const elementToBlock = new Map<HTMLElement, Block>();
 export const elementToSocket = new Map<HTMLElement, Socket>();
 export const elementToEdge = new Map<SVGElement, Edge>();
-export const nodes = document.getElementById('nodes') as HTMLElement;
-export const connections = document.getElementById('connections') as HTMLElement;
+export const nodePanel = document.getElementById('nodes') as HTMLElement;
+export const nodeConnections = document.getElementById('connections') as HTMLElement;
 export const workspace = document.getElementById('workspace') as HTMLElement;
 export const contextMenu = document.getElementById('context-menu') as HTMLElement;
+export const optionPanel = document.getElementById('option-panel') as HTMLElement;
+export const cogIcon = document.getElementById('cog-icon') as HTMLElement;
 export const nodeTypes: string[] = ['NodeType1', 'NodeType2', 'NodeType3'];
 
 
@@ -39,5 +41,10 @@ export function ToBlock(element: HTMLElement): Block | undefined {
 }
 
 export function ToSocket(element: HTMLElement): Socket | undefined {
-    return elementToSocket.get(element);
+    if (element.classList.contains('socket-label')) {
+        return elementToSocket.get(element.parentElement!);
+    }
+    else {
+        return elementToSocket.get(element);
+    }
 }

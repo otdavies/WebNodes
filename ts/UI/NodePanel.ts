@@ -3,7 +3,7 @@ import { Block } from './Block.js';
 import { Socket } from './Socket.js';
 import { Edge } from './Edge.js';
 import { InspectorPanel } from './InspectorPanel.js';
-import { SocketType, ToBlock, ToSocket, connections, contextMenu, nodes, nodeTypes } from './Shared.js';
+import { SocketType, ToBlock, ToSocket, nodeConnections, contextMenu, nodePanel, nodeTypes } from './Shared.js';
 
 interface Offset {
     top: number;
@@ -18,10 +18,11 @@ export class NodePanel {
     connectorPath: SVGPathElement | null = null;
     connectedEdges: Edge[] = [];
     shouldDragNode = false;
-    inspector: InspectorPanel = new InspectorPanel();
+    inspector: InspectorPanel | null = null;
 
-    constructor(document: HTMLElement) {
+    constructor(document: HTMLElement, inspector: InspectorPanel) {
         this.document = document;
+        this.inspector = inspector;
         this.AddListeners();
     }
 
@@ -50,7 +51,7 @@ export class NodePanel {
         path.setAttribute('stroke-width', '3');
         path.setAttribute('fill', 'none');
         path.classList.add('edge');
-        connections.appendChild(path);
+        nodeConnections.appendChild(path);
         return path;
     }
 
@@ -86,7 +87,7 @@ export class NodePanel {
                     let block = this.CreateBlock(nodeType);
                     let blockElement = block.GetElement(e.clientX, e.clientY);
                     contextMenu.style.display = 'none';
-                    nodes.appendChild(blockElement);
+                    nodePanel.appendChild(blockElement);
                 });
                 list.appendChild(listItem);
             }
@@ -156,7 +157,7 @@ export class NodePanel {
         if (this.selectedSocket !== null) {
             let isInput = Socket.IsInput(evt)
 
-            // If we clicked on an input socket
+            // If we released on an input socket
             if (isInput) {
                 let endSocket = ToSocket(evt.target as HTMLElement);
                 if (endSocket && this.connectorPath) {
@@ -183,7 +184,7 @@ export class NodePanel {
 
             // destroy the line if we didn't connect it
             if (!isInput) {
-                connections.removeChild(this.connectorPath as Node);
+                nodeConnections.removeChild(this.connectorPath as Node);
             }
             return;
         }
@@ -215,7 +216,7 @@ export class NodePanel {
             if (this.selectedBlock !== null) {
                 this.selectedBlock.OnDeselected();
                 this.selectedBlock.Destroy();
-                nodes.removeChild(this.selectedBlock.element);
+                nodePanel.removeChild(this.selectedBlock.element);
                 this.selectedBlock = null;
             }
         }
