@@ -1,6 +1,6 @@
-import { Block } from "./block.js";
-import { Edge } from "./edge.js";
-import { SocketType, elementToSocket, socketColorTable } from "./shared.js";
+import { Block } from "./Block.js";
+import { Edge } from "./Edge.js";
+import { SocketType, elementToSocket, socketColorTable } from "./Shared.js";
 
 export class Socket {
     owner: Block;

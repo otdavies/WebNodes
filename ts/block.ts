@@ -1,6 +1,6 @@
-import { Inspector } from "./inspector.js";
-import { elementToBlock, uuidv4 } from "./shared.js";
-import { Socket } from "./socket.js";
+import { InspectorPanel } from "./InspectorPanel.js";
+import { elementToBlock, uuidv4 } from "./Shared.js";
+import { Socket } from "./Socket.js";
 
 interface BlockProperty {
     type: "input" | "textarea" | "button" | "slider";
@@ -16,7 +16,7 @@ export class Block {
     private promise: (inputValues: any[]) => Promise<any>;
     private uuid: string;
     private size: number[];
-    private inspector: Inspector;
+    private inspector: InspectorPanel;
 
     private cachedValue: any = null;
     private isDirty: boolean = true;
@@ -29,7 +29,7 @@ export class Block {
         // add as many properties as you like...
     };
 
-    constructor(inspector: Inspector, promise: (inputValues: any[]) => Promise<any>) {
+    constructor(inspector: InspectorPanel, promise: (inputValues: any[]) => Promise<any>) {
         this.inspector = inspector;
         this.uuid = uuidv4();
         this.promise = promise;

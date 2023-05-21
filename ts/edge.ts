@@ -1,5 +1,5 @@
-import { connections, elementToEdge, uuidv4 } from "./shared.js";
-import { Socket } from "./socket.js";
+import { connections, elementToEdge, uuidv4 } from "./Shared.js";
+import { Socket } from "./Socket.js";
 
 export class Edge {
     startSocket: Socket;

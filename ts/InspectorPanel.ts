@@ -1,6 +1,6 @@
-import { Block } from "./block";
+import { Block } from "./Block.js";
 
-export class Inspector {
+export class InspectorPanel {
     private selectedNode: Block | null = null;
     private inspectorElement: HTMLElement;
     private propertyContainer: HTMLElement;

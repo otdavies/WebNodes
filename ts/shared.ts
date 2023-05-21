@@ -1,6 +1,6 @@
-import { Block } from "./block.js";
-import { Edge } from "./edge.js";
-import { Socket } from "./socket.js";
+import { Block } from "./Block.js";
+import { Edge } from "./Edge.js";
+import { Socket } from "./Socket.js";
 
 export function uuidv4(): string {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
