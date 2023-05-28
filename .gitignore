@@ -2,4 +2,7 @@
 node_modules
 
 # Typescript Ignore build /dist folder
-/dist/*.js
+/dist/*
+
+# Ignore all javascript files .js
+*.js
