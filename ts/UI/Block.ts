@@ -13,12 +13,12 @@ export class Block {
     public inputs: Socket[];
     public outputs: Socket[];
 
-    private promise: (inputValues: any[]) => Promise<any>;
+    private promise: (inputValues: any[][]) => Promise<any[]>;
     private uuid: string;
     private size: number[];
     private inspector: InspectorPanel;
 
-    private cachedValue: any = null;
+    private cachedValue: any[] = [];
     private isDirty: boolean = true;
 
     private properties: { [key: string]: BlockProperty; } = {
@@ -26,15 +26,59 @@ export class Block {
         "Prompt": { type: "textarea", value: "Some prompt" },
         "Generate": { type: "button", value: "Click me" },
         "Creativity": { type: "slider", value: 50 },
+        "Code": { type: "textarea", value: "return 5;" },
+
         // add as many properties as you like...
     };
 
-    constructor(inspector: InspectorPanel | null, promise: (inputValues: any[]) => Promise<any>) {
+    public SetProperties(properties: { [key: string]: BlockProperty; }) {
+        this.properties = properties;
+
+        for (const prop in this.properties) {
+            this.properties[prop].setValue = (val: any) => {
+                if (val === null) return;
+
+                this.properties[prop].value = val;
+                this.OnPropertyChanged(prop);
+            }
+        }
+        // Let all props know they changed
+        for (const prop in this.properties) {
+            this.OnPropertyChanged(prop);
+        }
+        // Refresh the properties
+        this.inspector.refreshProperties();
+    }
+
+    public DeepCopyProperties(): { [key: string]: BlockProperty; } {
+        let copy: { [key: string]: BlockProperty; } = {};
+        for (const prop in this.properties) {
+            const propValue = this.properties[prop];
+            const propCopy: BlockProperty = {
+                type: propValue.type,
+                value: JSON.parse(JSON.stringify(propValue.value))
+            };
+            copy[prop] = propCopy;
+        }
+        return copy;
+    }
+
+    constructor(inspector: InspectorPanel | null) {
         if (inspector === null) throw new Error("Inspector cannot be null!");
 
         this.inspector = inspector;
         this.uuid = uuidv4();
-        this.promise = promise;
+        // Execute the code on the input
+        this.promise = (input): Promise<any[]> => {
+            // Execute the Copy property
+            const code = this.properties["Code"].value;
+            // Function(..) the code and return the result
+            let output: any[] = Function("input", code)(input);
+            // If the output is not an array, wrap it in one
+            if (!Array.isArray(output)) output = [output];
+            return Promise.resolve(output);
+        };
+
         this.inputs = [];
         this.outputs = [];
         this.size = [100, 100];
@@ -125,12 +169,12 @@ export class Block {
         this.element.appendChild(titleElement);
     }
 
-    async Evaluate(): Promise<any> {
+    async Evaluate(outputPort: number = 0): Promise<any[]> {
         // Evaluate upstream nodes first
-        let promises: Promise<any>[] = [];
+        let promises: Promise<any[]>[] = [];
         for (let input of this.inputs) {
             for (let edge of input.edges) {
-                promises.push(edge.startSocket.owner.Evaluate());
+                promises.push(edge.startSocket.owner.Evaluate(edge.startSocket.socketNumber));
             }
         }
 
@@ -138,7 +182,7 @@ export class Block {
 
         if (!this.isDirty && this.cachedValue !== null) {
             // If the node is not dirty and has a cached value, return the cached value
-            return this.cachedValue;
+            return this.cachedValue[outputPort];
         }
 
         // Execute the promise of the current node
@@ -148,8 +192,12 @@ export class Block {
 
         // Mark the node as not dirty
         this.isDirty = false;
+        if (this.cachedValue !== null && this.cachedValue !== undefined && this.cachedValue.length > outputPort) {
+            console.log(`Output: ${this.cachedValue[outputPort]}`);
+            return this.cachedValue[outputPort];
+        }
 
-        return this.cachedValue;
+        return [];
     }
 
     CreateBlockHTML(x: number, y: number): HTMLElement {
@@ -178,6 +226,7 @@ export class Block {
     GetProperties(): { [key: string]: BlockProperty; } {
         return this.properties;
     }
+
 
     Destroy() {
         for (let socket of this.inputs) {

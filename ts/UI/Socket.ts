@@ -12,8 +12,9 @@ export class Socket {
     size: number[];
     color: string;
     element: HTMLElement;
+    socketNumber: number = 0;
 
-    constructor(owner: Block, name: string, dataType: string, socketType: SocketType) {
+    constructor(owner: Block, name: string, dataType: string, socketType: SocketType, socketNumber: number) {
         this.owner = owner;
         this.name = name;
         this.dataType = dataType;
@@ -22,6 +23,7 @@ export class Socket {
         this.connected = false;
         this.size = [10, 10];
         this.color = socketColorTable[dataType] || socketColorTable['default'];
+        this.socketNumber = socketNumber;
         this.element = this.CreateElement();
         elementToSocket.set(this.element, this);
     }

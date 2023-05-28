@@ -3,7 +3,7 @@ import { Block } from './Block.js';
 import { Socket } from './Socket.js';
 import { Edge } from './Edge.js';
 import { InspectorPanel } from './InspectorPanel.js';
-import { SocketType, ToBlock, ToSocket, nodeConnections, contextMenu, nodePanel, nodeTypes, workspace } from './Shared.js';
+import { SocketType, ToBlock, ToSocket, nodeConnections, contextMenu, nodePanel, nodeTypes, workspace, elementToBlock } from './Shared.js';
 
 interface Offset {
     top: number;
@@ -11,7 +11,7 @@ interface Offset {
 }
 
 export class NodePanel {
-    document: HTMLElement;
+    panel: HTMLElement;
     selectedSocket: Socket | null = null;
     selectedBlock: Block | null = null;
     lastMousePosition: { x: number; y: number } | null = null;
@@ -19,23 +19,27 @@ export class NodePanel {
     shouldDragNode = false;
     shouldDragGraph = false;
     graphOffset = { x: 0, y: 0 };
+    scaleFactor = 1;
     inspector: InspectorPanel | null = null;
 
     edges: Edge[] = [];
     blocks: Block[] = [];
 
     constructor(document: HTMLElement, inspector: InspectorPanel) {
-        this.document = document;
+        this.panel = document;
         this.inspector = inspector;
         this.AddListeners();
     }
 
     private AddListeners() {
-        this.document.addEventListener('mousedown', (evt) => this.OnLeftClickDown(evt));
-        this.document.addEventListener('mouseup', (evt) => this.OnLeftClickUp(evt));
-        this.document.addEventListener('mousemove', (evt) => this.OnMouseMove(evt));
-        this.document.addEventListener('contextmenu', (evt) => this.OnRightClick(evt));
-        this.document.addEventListener('keydown', (evt) => this.OnKeyDown(evt));
+        this.panel.addEventListener('mousedown', (evt) => this.OnLeftClickDown(evt));
+        this.panel.addEventListener('mouseup', (evt) => this.OnLeftClickUp(evt));
+        this.panel.addEventListener('mousemove', (evt) => this.OnMouseMove(evt));
+        this.panel.addEventListener('contextmenu', (evt) => this.OnRightClick(evt));
+        this.panel.addEventListener('wheel', (evt) => this.OnMouseWheel(evt));
+
+        // This needs to listen from document, not panel
+        document.addEventListener('keydown', (evt) => this.OnKeyDown(evt));
     }
 
     private GetElementOffset(el: HTMLElement): Offset {
@@ -47,6 +51,14 @@ export class NodePanel {
             el = el.offsetParent as HTMLElement;
         }
         return { top: _y, left: _x };
+    }
+
+    private GetMousePosition(evt: MouseEvent): { x: number, y: number } {
+        let rect = this.panel.getBoundingClientRect();
+        return {
+            x: (evt.clientX - rect.left - this.graphOffset.x) / this.scaleFactor,
+            y: (evt.clientY - rect.top - this.graphOffset.y) / this.scaleFactor
+        }
     }
 
     private CreateConnection(startSocket: Socket): SVGPathElement {
@@ -99,21 +111,13 @@ export class NodePanel {
     }
 
     private CreateBlock(nodeType: string): Block {
-        let block = new Block(this.inspector, (inputs: any[]) => {
-            console.log(inputs);
-            // Wait 1 second in the promise
-            return new Promise<void>((resolve) => {
-                setTimeout(() => {
-                    resolve(); // resolve the promise after 1 second
-                }, 1000);
-            });
-        });
+        let block = new Block(this.inspector);
 
-        block.AddInputSocket(new Socket(block, 'input1', 'default', SocketType.INPUT));
-        block.AddInputSocket(new Socket(block, 'input2', 'number', SocketType.INPUT));
-        block.AddInputSocket(new Socket(block, 'input3', 'string', SocketType.INPUT));
-        block.AddOutputSocket(new Socket(block, 'output1', 'number', SocketType.OUTPUT));
-        block.AddOutputSocket(new Socket(block, 'output2', 'boolean', SocketType.OUTPUT));
+        block.AddInputSocket(new Socket(block, 'input1', 'default', SocketType.INPUT, 0));
+        block.AddInputSocket(new Socket(block, 'input2', 'number', SocketType.INPUT, 1));
+        block.AddInputSocket(new Socket(block, 'input3', 'string', SocketType.INPUT, 2));
+        block.AddOutputSocket(new Socket(block, 'output1', 'number', SocketType.OUTPUT, 0));
+        block.AddOutputSocket(new Socket(block, 'output2', 'boolean', SocketType.OUTPUT, 1));
         this.blocks.push(block);
         return block;
     }
@@ -150,7 +154,7 @@ export class NodePanel {
                 this.selectedBlock = node;
                 node.OnSelected();
             }
-        } else if (evt.target === this.document) {
+        } else if (evt.target === this.panel) {
             this.shouldDragGraph = true;
             this.lastMousePosition = { x: evt.clientX, y: evt.clientY };
         }
@@ -208,6 +212,7 @@ export class NodePanel {
             let node = ToBlock(evt.target);
             if (node) {
                 node.Evaluate();
+                return;
             }
             return;
         }
@@ -226,10 +231,51 @@ export class NodePanel {
                 this.selectedBlock.OnDeselected();
                 this.selectedBlock.Destroy();
                 nodePanel.removeChild(this.selectedBlock.element);
+                elementToBlock.delete(this.selectedBlock.element);
                 this.blocks.splice(this.blocks.indexOf(this.selectedBlock), 1);
                 this.selectedBlock = null;
             }
         }
+        // If you hit D with a node selected and the cursor is over the node panel, duplicate the node
+        if (evt.key === 'd' && this.selectedBlock !== null) {
+            let newBlock = this.CloneBlock(this.selectedBlock);
+            this.selectedBlock.OnDeselected();
+            this.selectedBlock = null;
+            this.blocks.push(newBlock);
+            nodePanel.appendChild(newBlock.element);
+            this.selectedBlock = newBlock;
+            this.selectedBlock.OnSelected();
+        }
+    }
+
+    private CloneBlock(block: Block): Block {
+        let newBlock = new Block(this.inspector);
+
+        // Copy the properties from the original block
+        newBlock.SetProperties(block.DeepCopyProperties());
+
+        // Add the inputs
+        for (let i in block.inputs) {
+            let input = block.inputs[i];
+            let index = parseInt(i) + 1;
+            newBlock.AddInputSocket(new Socket(newBlock, "Input" + index, input.dataType, input.socketType, input.socketNumber));
+        }
+
+        // Add the outputs
+        for (let i in block.outputs) {
+            let output = block.outputs[i];
+            let index = parseInt(i) + 1;
+            newBlock.AddOutputSocket(new Socket(newBlock, "Output" + index, output.dataType, output.socketType, output.socketNumber));
+        }
+
+        // place the block next to the original block
+        newBlock.element.style.left = (parseInt(block.element.style.left) + 20) + 'px';
+        newBlock.element.style.top = (parseInt(block.element.style.top) + 20) + 'px';
+        // Ontop of the original block
+        newBlock.element.style.zIndex = (parseInt(block.element.style.zIndex) + 1) + '';
+
+        elementToBlock.set(newBlock.element, newBlock);
+        return newBlock;
     }
 
     private OnMouseMove(evt: MouseEvent) {
@@ -255,7 +301,6 @@ export class NodePanel {
             const dx = evt.clientX - this.lastMousePosition.x;
             const dy = evt.clientY - this.lastMousePosition.y;
             this.lastMousePosition = { x: evt.clientX, y: evt.clientY };
-            this.graphOffset = { x: this.graphOffset.x + dx, y: this.graphOffset.y + dy };
             // Move background
             workspace.style.backgroundPositionX = (this.graphOffset.x || 0) + dx + 'px';
             workspace.style.backgroundPositionY = (this.graphOffset.y || 0) + dy + 'px';
@@ -276,6 +321,27 @@ export class NodePanel {
                     });
                 });
             });
+
+            this.graphOffset = { x: this.graphOffset.x + dx, y: this.graphOffset.y + dy };
         }
+    }
+
+    private OnMouseWheel(evt: WheelEvent) {
+        const zoomTarget = this.GetMousePosition(evt);
+        // This determines the sensitivity of the zoom.
+        const zoomSensitivity = -0.001;
+        // DeltaY will be a positive value when scrolling down, and a negative value when scrolling up.
+        let scaleChange = 1 + (evt.deltaY * zoomSensitivity);
+        this.scaleFactor *= scaleChange;
+        this.scaleFactor = Math.max(this.scaleFactor, 0.1); // Limit the minimum scale to prevent inversion.
+        this.scaleFactor = Math.min(this.scaleFactor, 1); // Limit the maximum scale.
+        this.graphOffset.x = zoomTarget.x - (zoomTarget.x - this.graphOffset.x) * scaleChange;
+        this.graphOffset.y = zoomTarget.y - (zoomTarget.y - this.graphOffset.y) * scaleChange;
+
+        this.ApplyScale();
+    }
+
+    private ApplyScale() {
+        this.panel.style.transform = `translate(${this.graphOffset.x}px, ${this.graphOffset.y}px) scale(${this.scaleFactor})`;
     }
 }
