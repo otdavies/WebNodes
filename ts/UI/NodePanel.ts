@@ -53,14 +53,6 @@ export class NodePanel {
         return { top: _y, left: _x };
     }
 
-    private GetMousePosition(evt: MouseEvent): { x: number, y: number } {
-        let rect = this.panel.getBoundingClientRect();
-        return {
-            x: (evt.clientX - rect.left - this.graphOffset.x) / this.scaleFactor,
-            y: (evt.clientY - rect.top - this.graphOffset.y) / this.scaleFactor
-        }
-    }
-
     private CreateConnection(startSocket: Socket): SVGPathElement {
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('stroke', startSocket.color);
@@ -287,8 +279,13 @@ export class NodePanel {
         if (this.shouldDragNode === true && this.selectedBlock !== null && this.lastMousePosition !== null) {
             let x = evt.pageX - this.lastMousePosition.x;
             let y = evt.pageY - this.lastMousePosition.y;
-            this.selectedBlock.element.style.left = x + 'px';
-            this.selectedBlock.element.style.top = y + 'px';
+            let s = this.selectedBlock.scale;
+
+            this.selectedBlock.position[0] = x;
+            this.selectedBlock.position[1] = y;
+            this.selectedBlock.element.style.left = this.selectedBlock.position[0] + 'px';
+            this.selectedBlock.element.style.top = this.selectedBlock.position[1] + 'px';
+
 
             this.edges.forEach(edge => {
                 this.UpdateConnection(edge.element, edge.startSocket, edge.endSocket, evt);
@@ -301,13 +298,12 @@ export class NodePanel {
             const dx = evt.clientX - this.lastMousePosition.x;
             const dy = evt.clientY - this.lastMousePosition.y;
             this.lastMousePosition = { x: evt.clientX, y: evt.clientY };
-            // Move background
-            workspace.style.backgroundPositionX = (this.graphOffset.x || 0) + dx + 'px';
-            workspace.style.backgroundPositionY = (this.graphOffset.y || 0) + dy + 'px';
 
             this.blocks.forEach(block => {
-                block.element.style.left = (parseFloat(block.element.style.left) || 0) + dx + 'px';
-                block.element.style.top = (parseFloat(block.element.style.top) || 0) + dy + 'px';
+                block.position[0] += dx;
+                block.position[1] += dy;
+                block.element.style.left = block.position[0] + 'px';
+                block.element.style.top = block.position[1] + 'px';
 
                 block.outputs.forEach(socket => {
                     socket.edges.forEach(edge => {
@@ -322,26 +318,72 @@ export class NodePanel {
                 });
             });
 
+            // Move background
+            workspace.style.backgroundPositionX = (this.graphOffset.x || 0) + dx + 'px';
+            workspace.style.backgroundPositionY = (this.graphOffset.y || 0) + dy + 'px';
             this.graphOffset = { x: this.graphOffset.x + dx, y: this.graphOffset.y + dy };
         }
     }
 
     private OnMouseWheel(evt: WheelEvent) {
-        const zoomTarget = this.GetMousePosition(evt);
-        // This determines the sensitivity of the zoom.
-        const zoomSensitivity = -0.001;
-        // DeltaY will be a positive value when scrolling down, and a negative value when scrolling up.
-        let scaleChange = 1 + (evt.deltaY * zoomSensitivity);
-        this.scaleFactor *= scaleChange;
-        this.scaleFactor = Math.max(this.scaleFactor, 0.1); // Limit the minimum scale to prevent inversion.
-        this.scaleFactor = Math.min(this.scaleFactor, 1); // Limit the maximum scale.
-        this.graphOffset.x = zoomTarget.x - (zoomTarget.x - this.graphOffset.x) * scaleChange;
-        this.graphOffset.y = zoomTarget.y - (zoomTarget.y - this.graphOffset.y) * scaleChange;
+        evt.preventDefault();  // Prevent default scrolling
 
-        this.ApplyScale();
+        const zoomSensitivity = -0.001;
+        const scaleFactorOld = this.scaleFactor;
+        this.scaleFactor *= 1 + evt.deltaY * zoomSensitivity;
+        this.scaleFactor = Math.max(this.scaleFactor, 0.25); // Lower bound scale factor as needed
+        this.scaleFactor = Math.min(this.scaleFactor, 1); // Upper bound scale factor as needed
+        // this.scaleFactor = Math.round(this.scaleFactor * 10) / 10;
+
+        // Calculate cursor position relative to the SVG
+        const workspaceRect = workspace.getBoundingClientRect();
+        const cursorX = evt.clientX - workspaceRect.left;
+        const cursorY = evt.clientY - workspaceRect.top;
+
+        this.blocks.forEach(block => {
+            // Calculate new position based on scaling
+            const offsetX = cursorX - block.position[0];
+            const offsetY = cursorY - block.position[1];
+            const dx = offsetX * (1 - this.scaleFactor / scaleFactorOld);
+            const dy = offsetY * (1 - this.scaleFactor / scaleFactorOld);
+            block.position[0] += dx;
+            block.position[1] += dy;
+
+            // Update scale
+            block.scale = this.scaleFactor;
+
+            // Update CSS
+            block.element.style.left = block.position[0] + 'px';
+            block.element.style.top = block.position[1] + 'px';
+            block.element.style.transform = `scale(${block.scale})`;
+        });
+
+        this.edges.forEach(edge => {
+            this.UpdateConnection(edge.element, edge.startSocket, edge.endSocket, evt);
+        });
+
+        //  Scale background CSS
+        // #workspace {
+        //     position: absolute;
+        //     width: 100vw;
+        //     height: 100vh;
+        //     background: #1E1E1E;
+        //     background - image: radial - gradient(#484848 1px, transparent 0);
+        //     background - size: 40px 40px;
+        //     background - position: -19px - 19px;
+        // }
+
+        workspace.style.backgroundSize = (40 * this.scaleFactor) + 'px ' + (40 * this.scaleFactor) + 'px';
     }
 
     private ApplyScale() {
-        this.panel.style.transform = `translate(${this.graphOffset.x}px, ${this.graphOffset.y}px) scale(${this.scaleFactor})`;
+        // Get all HTML node elements
+        let nodes = this.blocks.map(block => block.element);
+
+        // Apply similar transformation to each HTML node
+        for (let i = 0; i < nodes.length; i++) {
+            let node = nodes[i];
+            node.style.transform = `scale(${this.blocks[i].scale})`;
+        }
     }
 }

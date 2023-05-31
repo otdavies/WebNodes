@@ -12,6 +12,10 @@ export class Block {
     public element: HTMLElement;
     public inputs: Socket[];
     public outputs: Socket[];
+    // The position of the block in the workspace
+    public position = [0, 0];
+    // The scale of the block
+    public scale = 1;
 
     private promise: (inputValues: any[][]) => Promise<any[]>;
     private uuid: string;
@@ -208,6 +212,8 @@ export class Block {
         newBlock.style.height = this.size[1] + 'px';
         newBlock.style.left = x + 'px';
         newBlock.style.top = y + 'px';
+        // Set position
+        this.position = [x, y];
         newBlock.id = this.uuid;
 
         this.element = newBlock;
@@ -219,6 +225,7 @@ export class Block {
         this.element.style.top = y + 'px';
         this.element.style.width = this.size[0] + 'px';
         this.element.style.height = this.size[1] + 'px';
+        this.position = [x, y];
 
         return this.element;
     }
