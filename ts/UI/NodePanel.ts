@@ -10,6 +10,7 @@ interface Offset {
     left: number;
 }
 
+
 export class NodePanel {
     panel: HTMLElement;
     selectedSocket: Socket | null = null;
@@ -42,15 +43,29 @@ export class NodePanel {
         document.addEventListener('keydown', (evt) => this.OnKeyDown(evt));
     }
 
+    private toWorkspaceCoordinates(clientX: number, clientY: number): Offset {
+        const workspaceRect = workspace.getBoundingClientRect();
+        return {
+            left: (clientX - workspaceRect.left) / this.scaleFactor,
+            top: (clientY - workspaceRect.top) / this.scaleFactor
+        };
+    }
+
     private GetElementOffset(el: HTMLElement): Offset {
-        let _x = 0;
-        let _y = 0;
-        while (el && !isNaN(el.offsetLeft) && !isNaN(el.offsetTop)) {
-            _x += el.offsetLeft - el.scrollLeft;
-            _y += el.offsetTop - el.scrollTop;
-            el = el.offsetParent as HTMLElement;
+        const rect = el.getBoundingClientRect();
+        const workspaceRect = workspace.getBoundingClientRect();
+        
+        // Calculate position relative to workspace and account for scaling
+        let x = (rect.left - workspaceRect.left) / this.scaleFactor;
+        let y = (rect.top - workspaceRect.top) / this.scaleFactor;
+
+        // For sockets, add their center offset
+        if (el.classList.contains('socket')) {
+            x += (rect.width / 2) / this.scaleFactor;
+            y += (rect.height / 2) / this.scaleFactor;
         }
-        return { top: _y, left: _x };
+
+        return { top: y, left: x };
     }
 
     private CreateConnection(startSocket: Socket): SVGPathElement {
@@ -59,28 +74,29 @@ export class NodePanel {
         path.setAttribute('stroke-width', '3');
         path.setAttribute('fill', 'none');
         path.classList.add('edge');
-        nodeConnections.appendChild(path);
+        document.getElementById('edges-group')?.appendChild(path);
         return path;
     }
 
     private UpdateConnection(path: SVGPathElement, startSocket: Socket, endSocket: Socket | null, event: MouseEvent | null): SVGPathElement {
         const startPos = this.GetElementOffset(startSocket.element);
-        const startX = startPos.left;
-        const startY = startPos.top;
+        let endPos: Offset;
 
-        let endX: number = 0, endY: number = 0;
         if (endSocket) {
-            const endPos = this.GetElementOffset(endSocket.element);
-            endX = endPos.left;
-            endY = endPos.top;
+            endPos = this.GetElementOffset(endSocket.element);
         } else if (event) {
-            endX = event.pageX;
-            endY = event.pageY;
+            endPos = this.toWorkspaceCoordinates(event.clientX, event.clientY);
+        } else {
+            return path;
         }
 
-        const dx = Math.abs(startX - endX) * 0.5;
-        const d = `M ${startX},${startY} C ${startX + dx},${startY} ${endX - dx},${endY} ${endX},${endY}`;
+        // Create curved path with proper scaling
+        const dx = Math.abs(startPos.left - endPos.left) * 0.5;
+        const d = `M ${startPos.left},${startPos.top} C ${startPos.left + dx},${startPos.top} ${endPos.left - dx},${endPos.top} ${endPos.left},${endPos.top}`;
+        
         path.setAttribute('d', d);
+        // Set a base stroke width that will scale with zoom
+        path.setAttribute('stroke-width', '3');
         return path;
     }
 
@@ -358,20 +374,15 @@ export class NodePanel {
             block.element.style.transform = `scale(${block.scale})`;
         });
 
-        this.edges.forEach(edge => {
-            this.UpdateConnection(edge.element, edge.startSocket, edge.endSocket, evt);
-        });
+        // Update SVG transform to match zoom
+        const edgesGroup = document.getElementById('edges-group');
+        if (edgesGroup) {
+            edgesGroup.setAttribute('transform', `scale(${this.scaleFactor})`);
+        }
 
-        //  Scale background CSS
-        // #workspace {
-        //     position: absolute;
-        //     width: 100vw;
-        //     height: 100vh;
-        //     background: #1E1E1E;
-        //     background - image: radial - gradient(#484848 1px, transparent 0);
-        //     background - size: 40px 40px;
-        //     background - position: -19px - 19px;
-        // }
+        this.edges.forEach(edge => {
+            this.UpdateConnection(edge.element, edge.startSocket, edge.endSocket, null);
+        });
 
         workspace.style.backgroundSize = (40 * this.scaleFactor) + 'px ' + (40 * this.scaleFactor) + 'px';
     }
