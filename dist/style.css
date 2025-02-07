@@ -321,3 +321,20 @@ body {
     cursor: pointer;
     z-index: 4;
 }
+
+#snap-icon {
+    position: fixed;
+    bottom: 10px;
+    left: 50px;
+    color: #d4d4d4;
+    font-size: 2em;
+    cursor: pointer;
+    z-index: 4;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+
+#snap-icon.active {
+    opacity: 1;
+    color: #007acc;
+}

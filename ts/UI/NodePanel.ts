@@ -26,6 +26,10 @@ export class NodePanel {
     edges: Edge[] = [];
     blocks: Block[] = [];
 
+    // Add these new properties
+    private isSnappingEnabled: boolean = false;
+    private gridSize: number = 20; // Size of snap grid
+
     constructor(document: HTMLElement, inspector: InspectorPanel) {
         this.panel = document;
         this.inspector = inspector;
@@ -39,11 +43,34 @@ export class NodePanel {
         this.panel.addEventListener('contextmenu', (evt) => this.OnRightClick(evt));
         this.panel.addEventListener('wheel', (evt) => this.OnMouseWheel(evt));
 
+        // Add snap toggle listener
+        const snapIcon = document.getElementById('snap-icon');
+        if (snapIcon) {
+            snapIcon.addEventListener('click', () => this.ToggleSnap());
+        }
+
         // This needs to listen from document, not panel
         document.addEventListener('keydown', (evt) => this.OnKeyDown(evt));
     }
 
-    private toWorkspaceCoordinates(clientX: number, clientY: number): Offset {
+    private ToggleSnap() {
+        this.isSnappingEnabled = !this.isSnappingEnabled;
+        const snapIcon = document.getElementById('snap-icon');
+        if (snapIcon) {
+            snapIcon.classList.toggle('active');
+        }
+    }
+
+    private SnapToGrid(value: number, offset: number = 0, scale: number = 1): number {
+        if (!this.isSnappingEnabled) return value;
+        // Account for graph offset and grid size
+        const adjustedValue = value - offset;
+        const scaledGridSize = this.gridSize * scale;
+        const snappedValue = Math.round(adjustedValue / scaledGridSize) * scaledGridSize;
+        return snappedValue + offset;
+    }
+
+    private ToWorkspaceCoordinates(clientX: number, clientY: number): Offset {
         const workspaceRect = workspace.getBoundingClientRect();
         return {
             left: (clientX - workspaceRect.left) / this.scaleFactor,
@@ -85,7 +112,7 @@ export class NodePanel {
         if (endSocket) {
             endPos = this.GetElementOffset(endSocket.element);
         } else if (event) {
-            endPos = this.toWorkspaceCoordinates(event.clientX, event.clientY);
+            endPos = this.ToWorkspaceCoordinates(event.clientX, event.clientY);
         } else {
             return path;
         }
@@ -175,16 +202,15 @@ export class NodePanel {
         this.shouldDragNode = false;
         this.shouldDragGraph = false;
 
-        if (this.selectedSocket !== null) {
-            let isInput = Socket.IsInput(evt)
+        if (this.selectedSocket !== null && this.connectorPath !== null) {
+            let isInput = Socket.IsInput(evt);
 
             // If we released on an input socket
             if (isInput) {
                 let endSocket = ToSocket(evt.target as HTMLElement);
-                if (endSocket && this.connectorPath) {
+                if (endSocket) {
                     this.connectorPath = this.UpdateConnection(this.connectorPath, this.selectedSocket, endSocket, evt);
                     let edge = new Edge(this.connectorPath, this.selectedSocket, endSocket);
-
 
                     // Add the edges
                     this.selectedSocket.Connect(edge);
@@ -192,21 +218,22 @@ export class NodePanel {
 
                     // Add the edge to the list
                     this.edges.push(edge);
+                } else {
+                    // If we dropped on empty space, remove the temporary path
+                    this.connectorPath.remove();
                 }
             } else {
                 // If this socket is the same as the StartSocket, remove any connections
                 if (evt.target === this.selectedSocket.element) {
                     this.selectedSocket.DisconnectAll();
                 }
+                // Remove the temporary path
+                this.connectorPath.remove();
             }
 
             // reset the start socket
             this.selectedSocket = null;
-
-            // destroy the line if we didn't connect it
-            if (!isInput) {
-                nodeConnections.removeChild(this.connectorPath as Node);
-            }
+            this.connectorPath = null;
             return;
         }
     }
@@ -291,17 +318,21 @@ export class NodePanel {
             this.UpdateConnection(this.connectorPath, this.selectedSocket, null, evt);
         }
 
-        // Drag a node, from where we clicked on it
-        if (this.shouldDragNode === true && this.selectedBlock !== null && this.lastMousePosition !== null) {
+        // Node dragging with snapping
+        if (this.shouldDragNode && this.selectedBlock !== null && this.lastMousePosition !== null) {
             let x = evt.pageX - this.lastMousePosition.x;
             let y = evt.pageY - this.lastMousePosition.y;
-            let s = this.selectedBlock.scale;
+
+            // Apply snapping relative to workspace grid
+            if (this.isSnappingEnabled) {
+                x = this.SnapToGrid(x, this.graphOffset.x, 2);
+                y = this.SnapToGrid(y, this.graphOffset.y, 2);
+            }
 
             this.selectedBlock.position[0] = x;
             this.selectedBlock.position[1] = y;
             this.selectedBlock.element.style.left = this.selectedBlock.position[0] + 'px';
             this.selectedBlock.element.style.top = this.selectedBlock.position[1] + 'px';
-
 
             this.edges.forEach(edge => {
                 this.UpdateConnection(edge.element, edge.startSocket, edge.endSocket, evt);
